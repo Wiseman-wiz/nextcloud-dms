@@ -35,7 +35,11 @@
 	}
 
 	/* ─────────────────────────────────────────
-	   Custom Modal (pure DOM, no OC.dialogs)
+	   Custom Modal using native <dialog>
+	   Uses .showModal() which renders in the
+	   browser's top-layer, natively overriding
+	   any JavaScript focus-traps (e.g. the
+	   Nextcloud viewer's focus trap).
 	   ───────────────────────────────────────── */
 	let _activeModal = null;
 
@@ -51,28 +55,26 @@
 		return new Promise(function (resolve) {
 			if (_activeModal) _closeModal(_activeModal);
 
-			/* overlay */
-			const overlay = document.createElement('div');
-			overlay.style.cssText = [
-				'position:fixed', 'inset:0', 'z-index:100000',
-				'background:rgba(0,0,0,0.55)',
-				'display:flex', 'align-items:center', 'justify-content:center',
-				'animation:dc-fade-in 0.18s ease',
-			].join(';');
+			/* inject styles once */
+			if (!document.getElementById('dc-modal-styles')) {
+				const style = document.createElement('style');
+				style.id = 'dc-modal-styles';
+				style.textContent = [
+					'dialog.dc-dialog::backdrop{background:rgba(0,0,0,0.55);animation:dc-fade-in 0.18s ease}',
+					'dialog.dc-dialog{padding:0;border:none;border-radius:12px;background:#ffffff;',
+					'position:fixed;inset:0;margin:auto;height:fit-content;',
+					'box-shadow:0 8px 40px rgba(0,0,0,0.28);max-width:520px;width:90%;',
+					'font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;',
+					'animation:dc-slide-in 0.2s ease;overflow:hidden}',
+					'@keyframes dc-fade-in{from{opacity:0}to{opacity:1}}',
+					'@keyframes dc-slide-in{from{transform:translateY(-16px);opacity:0}to{transform:none;opacity:1}}',
+				].join('');
+				document.head.appendChild(style);
+			}
 
-			/* dialog box */
-			const box = document.createElement('div');
-			box.setAttribute('role', 'dialog');
-			box.setAttribute('aria-modal', 'true');
-			box.setAttribute('aria-labelledby', 'dc-modal-title');
-			box.style.cssText = [
-				'background:#fff', 'border-radius:12px',
-				'box-shadow:0 8px 40px rgba(0,0,0,0.28)',
-				'max-width:520px', 'width:90%',
-				'font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif',
-				'animation:dc-slide-in 0.2s ease',
-				'overflow:hidden',
-			].join(';');
+			/* <dialog> element */
+			const dialog = document.createElement('dialog');
+			dialog.classList.add('dc-dialog');
 
 			/* title bar */
 			const titleBar = document.createElement('div');
@@ -85,6 +87,7 @@
 			titleEl.textContent = opts.title;
 			titleEl.style.cssText = 'margin:0;font-size:15px;font-weight:600;color:#222;';
 			const closeBtn = document.createElement('button');
+			closeBtn.type = 'button';
 			closeBtn.textContent = '✕';
 			closeBtn.setAttribute('aria-label', 'Close');
 			closeBtn.style.cssText = [
@@ -115,6 +118,7 @@
 
 			opts.buttons.forEach(function (btn, idx) {
 				const b = document.createElement('button');
+				b.type = 'button';
 				b.textContent = btn.label;
 				b.style.cssText = [
 					'padding:8px 18px', 'border-radius:6px', 'cursor:pointer',
@@ -134,36 +138,34 @@
 				btnRow.appendChild(b);
 			});
 
-			box.appendChild(titleBar);
-			box.appendChild(bodyEl);
-			box.appendChild(btnRow);
-			overlay.appendChild(box);
+			dialog.appendChild(titleBar);
+			dialog.appendChild(bodyEl);
+			dialog.appendChild(btnRow);
 
-			/* inject keyframes once */
-			if (!document.getElementById('dc-modal-styles')) {
-				const style = document.createElement('style');
-				style.id = 'dc-modal-styles';
-				style.textContent = [
-					'@keyframes dc-fade-in{from{opacity:0}to{opacity:1}}',
-					'@keyframes dc-slide-in{from{transform:translateY(-16px);opacity:0}to{transform:none;opacity:1}}',
-				].join('');
-				document.head.appendChild(style);
-			}
-
-			const modal = { overlay, resolve };
+			const modal = { dialog, resolve };
 			_activeModal = modal;
 
-			/* close helpers */
+			/* close via ✕ button */
 			closeBtn.addEventListener('click', function () {
 				_closeModal(modal);
 				resolve(-1);
 			});
-			overlay.addEventListener('click', function (e) {
-				if (e.target === overlay) { _closeModal(modal); resolve(-1); }
-			});
-			document.addEventListener('keydown', _escHandler);
 
-			document.body.appendChild(overlay);
+			/* close on backdrop click (click on <dialog> itself, outside inner content) */
+			dialog.addEventListener('click', function (e) {
+				if (e.target === dialog) { _closeModal(modal); resolve(-1); }
+			});
+
+			/* close on Escape — native <dialog> fires a 'cancel' event */
+			dialog.addEventListener('cancel', function (e) {
+				e.preventDefault();
+				_closeModal(modal);
+				resolve(-1);
+			});
+
+			/* mount and open as modal (top-layer) */
+			document.body.appendChild(dialog);
+			dialog.showModal();
 
 			/* focus first primary button */
 			const firstPrimary = btnRow.querySelector('button');
@@ -173,18 +175,11 @@
 
 	function _closeModal(modal) {
 		if (!modal) return;
-		document.removeEventListener('keydown', _escHandler);
-		if (modal.overlay && modal.overlay.parentNode) {
-			modal.overlay.parentNode.removeChild(modal.overlay);
+		try { modal.dialog.close(); } catch (_) {}
+		if (modal.dialog && modal.dialog.parentNode) {
+			modal.dialog.parentNode.removeChild(modal.dialog);
 		}
 		if (_activeModal === modal) _activeModal = null;
-	}
-
-	function _escHandler(e) {
-		if (e.key === 'Escape' && _activeModal) {
-			_closeModal(_activeModal);
-			_activeModal && _activeModal.resolve(-1);
-		}
 	}
 
 	/* ─────────────────────────────────────────
@@ -254,29 +249,29 @@
 					{
 						label: 'Confirm Download', primary: true,
 						onClick: function () {
-							/* validation is done inline; resolve only after passing */
+							/* no-op — we replace this button's handler below */
 						},
 					},
 				],
 			});
 
-			/* Intercept the "Confirm Download" button to validate before closing */
-			/* We override after modal is in DOM */
+			/* The <dialog> is already in the DOM after _createModal.
+			   Replace the Confirm button handler with validation logic. */
 			setTimeout(function () {
-				const overlay = _activeModal && _activeModal.overlay;
-				if (!overlay) { reject(new Error('no modal')); return; }
+				const dlg = _activeModal && _activeModal.dialog;
+				if (!dlg) { reject(new Error('no modal')); return; }
 
-				const buttons = overlay.querySelectorAll('button');
+				const buttons = dlg.querySelectorAll('button');
 				const confirmBtn = buttons[buttons.length - 1]; /* last = primary */
 				if (!confirmBtn) { reject(new Error('no button')); return; }
 
-				/* Remove the generic click handler and add our own */
+				/* Clone to strip the generic close handler */
 				const newBtn = confirmBtn.cloneNode(true);
 				confirmBtn.parentNode.replaceChild(newBtn, confirmBtn);
 
 				newBtn.addEventListener('click', function () {
-					const ta = overlay.querySelector('#' + uid);
-					const err = overlay.querySelector('#' + uid + '-err');
+					const ta = dlg.querySelector('#' + uid);
+					const err = dlg.querySelector('#' + uid + '-err');
 					const val = ta ? ta.value.trim() : '';
 					if (!val) {
 						if (ta) ta.style.borderColor = '#e53935';
@@ -288,7 +283,7 @@
 				});
 
 				/* Focus textarea */
-				const ta = overlay.querySelector('#' + uid);
+				const ta = dlg.querySelector('#' + uid);
 				if (ta) ta.focus();
 			}, 20);
 		});
