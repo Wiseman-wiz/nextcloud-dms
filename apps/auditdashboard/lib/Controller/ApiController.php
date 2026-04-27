@@ -1,0 +1,257 @@
+<?php
+
+declare(strict_types=1);
+
+namespace OCA\AuditDashboard\Controller;
+
+use OCA\AuditDashboard\AppInfo\Application;
+use OCA\AuditDashboard\Db\AuditLogMapper;
+use OCP\AppFramework\Controller;
+use OCP\AppFramework\Http\DataDownloadResponse;
+use OCP\AppFramework\Http\JSONResponse;
+use OCP\IRequest;
+use OCP\IUserManager;
+
+class ApiController extends Controller {
+    private AuditLogMapper $mapper;
+    private IUserManager $userManager;
+
+    private const EXCLUDED_CATEGORIES = ['auth', 'user'];
+
+    public function __construct(IRequest $request, AuditLogMapper $mapper, IUserManager $userManager) {
+        parent::__construct(Application::APP_ID, $request);
+        $this->mapper = $mapper;
+        $this->userManager = $userManager;
+    }
+
+    private function getDisplayName(string $userId): string {
+        $user = $this->userManager->get($userId);
+        return $user ? $user->getDisplayName() : $userId;
+    }
+
+    /**
+     * @NoAdminRequired
+     */
+    public function list(): JSONResponse {
+        $limit = (int)$this->request->getParam('limit', '50');
+        $offset = (int)$this->request->getParam('offset', '0');
+        $category = $this->request->getParam('category', '');
+        $userId = $this->request->getParam('userId', '');
+        $action = $this->request->getParam('action', '');
+        $search = $this->request->getParam('search', '');
+        $dateFrom = $this->request->getParam('dateFrom', '');
+        $dateTo = $this->request->getParam('dateTo', '');
+
+        $limit = min(max($limit, 1), 500);
+
+        $logs = $this->mapper->findAll(
+            $limit,
+            $offset,
+            $category ?: null,
+            $userId ?: null,
+            $action ?: null,
+            $search ?: null,
+            $dateFrom ?: null,
+            $dateTo ?: null,
+            self::EXCLUDED_CATEGORIES
+        );
+
+        $total = $this->mapper->countAll(
+            $category ?: null,
+            $userId ?: null,
+            $action ?: null,
+            $search ?: null,
+            $dateFrom ?: null,
+            $dateTo ?: null,
+            self::EXCLUDED_CATEGORIES
+        );
+
+        $data = array_map(function ($log) {
+            return [
+                'id' => $log->getId(),
+                'timestamp' => $log->getTimestamp(),
+                'userId' => $log->getUserId(),
+                'displayName' => $this->getDisplayName($log->getUserId()),
+                'action' => $log->getAction(),
+                'category' => $log->getCategory(),
+                'target' => $log->getTarget(),
+            ];
+        }, $logs);
+
+        return new JSONResponse([
+            'logs' => $data,
+            'total' => $total,
+        ]);
+    }
+
+    /**
+     * @NoAdminRequired
+     */
+    public function stats(): JSONResponse {
+        $allStats = $this->mapper->getStats();
+        // Remove excluded categories
+        foreach (self::EXCLUDED_CATEGORIES as $cat) {
+            unset($allStats[$cat]);
+        }
+
+        $total = 0;
+        foreach ($allStats as $count) {
+            $total += $count;
+        }
+
+        $userIds = $this->mapper->getDistinctUsers();
+        $users = array_map(function ($uid) {
+            return ['id' => $uid, 'displayName' => $this->getDisplayName($uid)];
+        }, $userIds);
+
+        return new JSONResponse([
+            'byCategory' => $allStats,
+            'total' => $total,
+            'users' => $users,
+            'actions' => $this->mapper->getDistinctActions(self::EXCLUDED_CATEGORIES),
+        ]);
+    }
+
+    /**
+     * @NoAdminRequired
+     */
+    public function export(): DataDownloadResponse {
+        $category = $this->request->getParam('category', '');
+        $userId = $this->request->getParam('userId', '');
+        $search = $this->request->getParam('search', '');
+        $dateFrom = $this->request->getParam('dateFrom', '');
+        $dateTo = $this->request->getParam('dateTo', '');
+        $format = $this->request->getParam('format', 'csv');
+
+        $logs = $this->mapper->findAll(
+            10000,
+            0,
+            $category ?: null,
+            $userId ?: null,
+            null,
+            $search ?: null,
+            $dateFrom ?: null,
+            $dateTo ?: null,
+            self::EXCLUDED_CATEGORIES
+        );
+
+        $dateStr = (new \DateTime('now', new \DateTimeZone('Asia/Manila')))->format('Y-m-d');
+
+        if ($format === 'xlsx') {
+            return $this->exportXlsx($logs, $dateStr);
+        }
+
+        return $this->exportCsv($logs, $dateStr);
+    }
+
+    private function exportCsv(array $logs, string $dateStr): DataDownloadResponse {
+        $csv = "Timestamp,User,Action,Category,Target\n";
+        foreach ($logs as $log) {
+            $csv .= sprintf(
+                "%s,%s,%s,%s,%s\n",
+                $this->escapeCsv($log->getTimestamp()),
+                $this->escapeCsv($this->getDisplayName($log->getUserId())),
+                $this->escapeCsv($log->getAction()),
+                $this->escapeCsv($log->getCategory()),
+                $this->escapeCsv($log->getTarget())
+            );
+        }
+
+        return new DataDownloadResponse($csv, 'audit-log-' . $dateStr . '.csv', 'text/csv');
+    }
+
+    private function exportXlsx(array $logs, string $dateStr): DataDownloadResponse {
+        $headers = ['Timestamp', 'User', 'Action', 'Category', 'Target'];
+        $rows = [];
+        foreach ($logs as $log) {
+            $rows[] = [
+                $log->getTimestamp(),
+                $this->getDisplayName($log->getUserId()),
+                $log->getAction(),
+                $log->getCategory(),
+                $log->getTarget(),
+            ];
+        }
+
+        $xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' . "\n";
+        $xml .= '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">';
+        $xml .= '<sheetData>';
+
+        // Header row
+        $xml .= '<row>';
+        foreach ($headers as $h) {
+            $xml .= '<c t="inlineStr"><is><t>' . $this->escapeXml($h) . '</t></is></c>';
+        }
+        $xml .= '</row>';
+
+        // Data rows
+        foreach ($rows as $row) {
+            $xml .= '<row>';
+            foreach ($row as $cell) {
+                $xml .= '<c t="inlineStr"><is><t>' . $this->escapeXml($cell ?? '') . '</t></is></c>';
+            }
+            $xml .= '</row>';
+        }
+
+        $xml .= '</sheetData></worksheet>';
+
+        // Build minimal XLSX (ZIP with required structure)
+        $xlsxContent = $this->buildXlsx($xml, count($rows));
+
+        return new DataDownloadResponse($xlsxContent, 'audit-log-' . $dateStr . '.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    }
+
+    private function buildXlsx(string $sheetXml, int $rowCount): string {
+        $tmpFile = tempnam(sys_get_temp_dir(), 'audit_xlsx_');
+        $zip = new \ZipArchive();
+        $zip->open($tmpFile, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+
+        // [Content_Types].xml
+        $zip->addFromString('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+            . '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+            . '<Default Extension="xml" ContentType="application/xml"/>'
+            . '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+            . '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+            . '</Types>');
+
+        // _rels/.rels
+        $zip->addFromString('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            . '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+            . '</Relationships>');
+
+        // xl/workbook.xml
+        $zip->addFromString('xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            . '<sheets><sheet name="Audit Log" sheetId="1" r:id="rId1"/></sheets>'
+            . '</workbook>');
+
+        // xl/_rels/workbook.xml.rels
+        $zip->addFromString('xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            . '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+            . '</Relationships>');
+
+        // xl/worksheets/sheet1.xml
+        $zip->addFromString('xl/worksheets/sheet1.xml', $sheetXml);
+
+        $zip->close();
+
+        $content = file_get_contents($tmpFile);
+        unlink($tmpFile);
+
+        return $content;
+    }
+
+    private function escapeCsv(string $value): string {
+        if (str_contains($value, ',') || str_contains($value, '"') || str_contains($value, "\n")) {
+            return '"' . str_replace('"', '""', $value) . '"';
+        }
+        return $value;
+    }
+
+    private function escapeXml(string $value): string {
+        return htmlspecialchars($value, ENT_XML1 | ENT_QUOTES, 'UTF-8');
+    }
+}

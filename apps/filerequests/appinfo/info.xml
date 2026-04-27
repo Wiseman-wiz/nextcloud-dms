@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
+    <id>filerequests</id>
+    <name>File Requests</name>
+    <summary>File requisition and ticketing system</summary>
+    <description><![CDATA[A file requisition and ticketing system that allows users to request files from other users. Custodians can accept or reject requests, and fulfill them by sharing files with configurable permissions, passwords, expiry dates, and file locking.]]></description>
+    <version>1.6.0</version>
+    <licence>agpl</licence>
+    <author>ClaudeAdmin</author>
+    <namespace>FileRequests</namespace>
+    <category>files</category>
+    <bugs>https://github.com/nextcloud</bugs>
+    <dependencies>
+        <nextcloud min-version="28" max-version="33"/>
+    </dependencies>
+</info>

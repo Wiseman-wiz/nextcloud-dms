@@ -1,0 +1,51 @@
+/* ============================================================
+   Download Control – styles.css
+   Compatible with Nextcloud 28+ / NC 33
+   ============================================================ */
+
+/* ── Dialog button row ──────────────────────────────────────── */
+.oc-dialog .oc-dialog-buttonrow button {
+    padding: 8px 18px;
+    border-radius: 6px;
+    border: 1px solid var(--color-border, #ccc);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    background: var(--color-main-background, #fff);
+    color: var(--color-main-text, #222);
+    transition: background 0.15s, opacity 0.15s;
+    font-family: inherit;
+}
+
+.oc-dialog .oc-dialog-buttonrow button:hover {
+    background: var(--color-background-hover, #f5f5f5);
+}
+
+.oc-dialog .oc-dialog-buttonrow button.primary {
+    background: var(--color-primary, #0082c9);
+    color: #fff;
+    border-color: var(--color-primary, #0082c9);
+}
+
+.oc-dialog .oc-dialog-buttonrow button.primary:hover {
+    background: var(--color-primary-hover, #0073b1);
+}
+
+/* ── Dialog shell ───────────────────────────────────────────── */
+.oc-dialog {
+    border-radius: 12px !important;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18) !important;
+}
+
+.oc-dialog .oc-dialog-title {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+/* ── Purpose textarea ───────────────────────────────────────── */
+.oc-dialog textarea:focus {
+    border-color: var(--color-primary, #0082c9) !important;
+    outline: none !important;
+    box-shadow: 0 0 0 2px rgba(0,130,201,0.15) !important;
+}

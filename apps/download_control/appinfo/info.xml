@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
+    <id>download_control</id>
+    <name>Download Control</name>
+    <summary>Intercepts downloads and file previews to enforce purpose statements and disclaimers.</summary>
+    <description><![CDATA[Enforces security and auditing by requiring users to state their purpose before downloading files and acknowledge a disclaimer before viewing confidential files. Logs all actions for auditing.]]></description>
+    <version>1.0.0</version>
+    <licence>agpl</licence>
+    <author>ClaudeAdmin</author>
+    <namespace>DownloadControl</namespace>
+    <category>files</category>
+    <dependencies>
+        <nextcloud min-version="28" max-version="33"/>
+    </dependencies>
+</info>
