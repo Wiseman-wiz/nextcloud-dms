@@ -232,7 +232,7 @@
 					placeholder="e.g. Audit review, Customer support, Compliance check…"
 					style="width:100%;box-sizing:border-box;border:1px solid #ccc;border-radius:6px;
 					       padding:9px 11px;font-size:13px;resize:vertical;font-family:inherit;
-					       transition:border-color 0.15s;"
+					       background-color:#f9f9f9;color:#000;transition:border-color 0.15s;"
 				></textarea>
 				<p id="${uid}-err" style="color:#e53935;font-size:12px;margin:4px 0 0;display:none;">
 					This field is required.
