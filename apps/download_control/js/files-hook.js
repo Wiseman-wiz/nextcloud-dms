@@ -296,6 +296,41 @@
 	}
 
 	/* ─────────────────────────────────────────
+	   Open a file programmatically.
+	   Tries OCA.Viewer first (handles images, PDFs,
+	   videos, markdown, text, etc.), then falls back
+	   to URL-based navigation using the file ID.
+	   ───────────────────────────────────────── */
+	function _openFile(row, dir, fileName) {
+		var filePath = (dir || '') + '/' + fileName;
+		var fileId = row.getAttribute('data-cy-files-list-row-fileid');
+
+		/* Strategy 1: NC Viewer API (previewable files) */
+		if (window.OCA && OCA.Viewer && typeof OCA.Viewer.open === 'function') {
+			try {
+				OCA.Viewer.open({ path: filePath });
+				return;
+			} catch (_) { /* fall through */ }
+		}
+
+		/* Strategy 2: Navigate via NC internal URL (non-previewable) */
+		if (fileId) {
+			var params = new URLSearchParams(window.location.search);
+			params.set('dir', dir || '/');
+			params.set('openfile', fileId);
+			var base = window.location.pathname;
+			window.history.pushState(null, '', base + '?' + params.toString());
+			window.dispatchEvent(new PopStateEvent('popstate'));
+			return;
+		}
+
+		/* Strategy 3: last resort — direct download link */
+		var dlUrl = OC.generateUrl('/remote.php/dav/files/' +
+			OC.getCurrentUser().uid + filePath);
+		window.open(dlUrl, '_blank');
+	}
+
+	/* ─────────────────────────────────────────
 	   VIEW interception
 	   NC 33: the "open file" button is
 	     button.files-list__row-name-link[aria-label="View"]
@@ -310,9 +345,15 @@
 			const row = event.target.closest('tr[data-cy-files-list-row]');
 			if (!row) return;
 
-			/* Skip folders */
-			const type = row.getAttribute('data-cy-files-list-row-type');
-			if (type === 'directory' || type === 'folder') return;
+			/* ── Skip folders ─────────────────────────────────
+			   NC 33 renders a .folder-icon inside the row icon
+			   for directories. This is the reliable signal since
+			   data-cy-files-list-row-type/mime are not set.
+			   ──────────────────────────────────────────────── */
+			const icon = row.querySelector('.files-list__row-icon');
+			if (icon && icon.querySelector('.folder-icon')) {
+				return;  /* folder → let NC handle navigation normally */
+			}
 
 			const fileName = row.getAttribute('data-cy-files-list-row-name') || 'this file';
 			const key = fileName; /* per-tab cache */
@@ -330,8 +371,10 @@
 						fileName: fileName,
 						filePath: dir + '/' + fileName,
 					});
-					/* Re-trigger the click so Vue opens the file */
-					btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+					/* Open the file programmatically instead of
+					   re-dispatching a click (which bubbles to the
+					   parent <a> and causes unwanted navigation). */
+					_openFile(row, dir, fileName);
 				})
 				.catch(function () { /* declined – stay on list */ });
 		}, true /* capture */);
