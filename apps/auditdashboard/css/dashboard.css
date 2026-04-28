@@ -240,11 +240,26 @@
     padding: 40px 14px;
     color: var(--color-text-maxcontrast, #767676);
 }
-.audit-table td.target-cell {
-    max-width: 300px;
+.audit-table td.file-cell {
+    max-width: 220px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+.audit-table td.purpose-cell {
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.purpose-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 500;
+    background: #e8f4fd;
+    color: #1565c0;
 }
 
 /* Category badges */

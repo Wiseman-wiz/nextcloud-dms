@@ -36,12 +36,14 @@ class AuditLogMapper extends QBMapper {
         }
         if ($search !== null && $search !== '') {
             $searchParam = '%' . $this->db->escapeLikeParameter($search) . '%';
+            $purposeExists = 'EXISTS (SELECT 1 FROM `*PREFIX*download_logs` `dl` WHERE `dl`.`user_id` = `*PREFIX*audit_log`.`user_id` AND `*PREFIX*audit_log`.`target` LIKE CONCAT(\'%/\', `dl`.`file_name`) AND `dl`.`purpose` LIKE ' . $qb->createNamedParameter($searchParam) . ')';
             $qb->andWhere($qb->expr()->orX(
                 $qb->expr()->iLike('target', $qb->createNamedParameter($searchParam)),
                 $qb->expr()->iLike('user_id', $qb->createNamedParameter($searchParam)),
                 $qb->expr()->iLike('action', $qb->createNamedParameter($searchParam)),
                 $qb->expr()->iLike('category', $qb->createNamedParameter($searchParam)),
-                $qb->expr()->iLike('timestamp', $qb->createNamedParameter($searchParam))
+                $qb->expr()->iLike('timestamp', $qb->createNamedParameter($searchParam)),
+                $qb->createFunction($purposeExists)
             ));
         }
         if ($dateFrom !== null && $dateFrom !== '') {
@@ -76,12 +78,14 @@ class AuditLogMapper extends QBMapper {
         }
         if ($search !== null && $search !== '') {
             $searchParam = '%' . $this->db->escapeLikeParameter($search) . '%';
+            $purposeExists = 'EXISTS (SELECT 1 FROM `*PREFIX*download_logs` `dl` WHERE `dl`.`user_id` = `*PREFIX*audit_log`.`user_id` AND `*PREFIX*audit_log`.`target` LIKE CONCAT(\'%/\', `dl`.`file_name`) AND `dl`.`purpose` LIKE ' . $qb->createNamedParameter($searchParam) . ')';
             $qb->andWhere($qb->expr()->orX(
                 $qb->expr()->iLike('target', $qb->createNamedParameter($searchParam)),
                 $qb->expr()->iLike('user_id', $qb->createNamedParameter($searchParam)),
                 $qb->expr()->iLike('action', $qb->createNamedParameter($searchParam)),
                 $qb->expr()->iLike('category', $qb->createNamedParameter($searchParam)),
-                $qb->expr()->iLike('timestamp', $qb->createNamedParameter($searchParam))
+                $qb->expr()->iLike('timestamp', $qb->createNamedParameter($searchParam)),
+                $qb->createFunction($purposeExists)
             ));
         }
         if ($dateFrom !== null && $dateFrom !== '') {

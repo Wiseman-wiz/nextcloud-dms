@@ -176,7 +176,7 @@
         });
 
         var tbody = document.getElementById('audit-table-body');
-        tbody.innerHTML = '<tr><td colspan="5" class="loading">Loading...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="loading">Loading...</td></tr>';
 
         fetch(baseUrl + '/api/logs?' + params.toString(), {
             headers: { 'requesttoken': OC.requestToken }
@@ -190,14 +190,14 @@
             })
             .catch(function (err) {
                 console.error('Failed to load logs:', err);
-                tbody.innerHTML = '<tr><td colspan="5" class="loading">Failed to load audit logs.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="loading">Failed to load audit logs.</td></tr>';
             });
     }
 
     function renderTable(logs) {
         var tbody = document.getElementById('audit-table-body');
         if (!logs || logs.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><h3>No audit logs found</h3><p>Events will appear here as users interact with the server.</p></td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><h3>No audit logs found</h3><p>Events will appear here as users interact with the server.</p></td></tr>';
             return;
         }
 
@@ -209,7 +209,8 @@
             html += '<td><strong>' + escapeHtml(log.displayName || log.userId) + '</strong></td>';
             html += '<td>' + actionBadge(log.action) + '</td>';
             html += '<td>' + categoryBadge(log.category) + '</td>';
-            html += '<td class="target-cell" title="' + escapeHtml(log.target) + '">' + escapeHtml(log.target) + '</td>';
+            html += '<td class="file-cell" title="' + escapeHtml(log.target) + '">' + escapeHtml(log.fileName || '') + '</td>';
+            html += '<td class="purpose-cell">' + purposeContent(log.action, log.purpose) + '</td>';
             html += '</tr>';
         });
 
@@ -257,6 +258,11 @@
 
     function formatAction(action) {
         return action.replace(/_/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+    }
+
+    function purposeContent(action, purpose) {
+        if (action !== 'file_downloaded' || !purpose) return '';
+        return '<span class="purpose-badge">' + escapeHtml(purpose) + '</span>';
     }
 
     function escapeHtml(str) {

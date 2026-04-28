@@ -9,19 +9,22 @@ use OCA\AuditDashboard\Db\AuditLogMapper;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\DataDownloadResponse;
 use OCP\AppFramework\Http\JSONResponse;
+use OCP\IDBConnection;
 use OCP\IRequest;
 use OCP\IUserManager;
 
 class ApiController extends Controller {
     private AuditLogMapper $mapper;
     private IUserManager $userManager;
+    private IDBConnection $db;
 
     private const EXCLUDED_CATEGORIES = ['auth', 'user'];
 
-    public function __construct(IRequest $request, AuditLogMapper $mapper, IUserManager $userManager) {
+    public function __construct(IRequest $request, AuditLogMapper $mapper, IUserManager $userManager, IDBConnection $db) {
         parent::__construct(Application::APP_ID, $request);
         $this->mapper = $mapper;
         $this->userManager = $userManager;
+        $this->db = $db;
     }
 
     private function getDisplayName(string $userId): string {
@@ -67,6 +70,12 @@ class ApiController extends Controller {
         );
 
         $data = array_map(function ($log) {
+            $target = $log->getTarget();
+            $fileName = $target ? basename($target) : '';
+            $purpose = '';
+            if ($log->getAction() === 'file_downloaded' && $fileName !== '') {
+                $purpose = $this->lookupDownloadPurpose($log->getUserId(), $fileName, $log->getTimestamp());
+            }
             return [
                 'id' => $log->getId(),
                 'timestamp' => $log->getTimestamp(),
@@ -74,7 +83,9 @@ class ApiController extends Controller {
                 'displayName' => $this->getDisplayName($log->getUserId()),
                 'action' => $log->getAction(),
                 'category' => $log->getCategory(),
-                'target' => $log->getTarget(),
+                'target' => $target,
+                'fileName' => $fileName,
+                'purpose' => $purpose,
             ];
         }, $logs);
 
@@ -144,16 +155,47 @@ class ApiController extends Controller {
         return $this->exportCsv($logs, $dateStr);
     }
 
+    /**
+     * Look up the download purpose from the download_logs table.
+     * Matches by user_id, file_name, and the closest timestamp.
+     */
+    private function lookupDownloadPurpose(string $userId, string $fileName, string $timestamp): string {
+        try {
+            $qb = $this->db->getQueryBuilder();
+            $qb->select('purpose')
+                ->from('download_logs')
+                ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+                ->andWhere($qb->expr()->eq('file_name', $qb->createNamedParameter($fileName)))
+                ->orderBy($qb->createFunction('ABS(TIMESTAMPDIFF(SECOND, created_at, ' . $qb->createNamedParameter($timestamp) . '))'), 'ASC')
+                ->setMaxResults(1);
+
+            $result = $qb->executeQuery();
+            $row = $result->fetch();
+            $result->closeCursor();
+
+            return $row ? (string)$row['purpose'] : '';
+        } catch (\Throwable $e) {
+            return '';
+        }
+    }
+
     private function exportCsv(array $logs, string $dateStr): DataDownloadResponse {
-        $csv = "Timestamp,User,Action,Category,Target\n";
+        $csv = "Timestamp,User,Action,Category,File,Purpose\n";
         foreach ($logs as $log) {
+            $target = $log->getTarget();
+            $fileName = $target ? basename($target) : '';
+            $purpose = '';
+            if ($log->getAction() === 'file_downloaded' && $fileName !== '') {
+                $purpose = $this->lookupDownloadPurpose($log->getUserId(), $fileName, $log->getTimestamp());
+            }
             $csv .= sprintf(
-                "%s,%s,%s,%s,%s\n",
+                "%s,%s,%s,%s,%s,%s\n",
                 $this->escapeCsv($log->getTimestamp()),
                 $this->escapeCsv($this->getDisplayName($log->getUserId())),
                 $this->escapeCsv($log->getAction()),
                 $this->escapeCsv($log->getCategory()),
-                $this->escapeCsv($log->getTarget())
+                $this->escapeCsv($fileName),
+                $this->escapeCsv($purpose)
             );
         }
 
@@ -161,15 +203,22 @@ class ApiController extends Controller {
     }
 
     private function exportXlsx(array $logs, string $dateStr): DataDownloadResponse {
-        $headers = ['Timestamp', 'User', 'Action', 'Category', 'Target'];
+        $headers = ['Timestamp', 'User', 'Action', 'Category', 'File', 'Purpose'];
         $rows = [];
         foreach ($logs as $log) {
+            $target = $log->getTarget();
+            $fileName = $target ? basename($target) : '';
+            $purpose = '';
+            if ($log->getAction() === 'file_downloaded' && $fileName !== '') {
+                $purpose = $this->lookupDownloadPurpose($log->getUserId(), $fileName, $log->getTimestamp());
+            }
             $rows[] = [
                 $log->getTimestamp(),
                 $this->getDisplayName($log->getUserId()),
                 $log->getAction(),
                 $log->getCategory(),
-                $log->getTarget(),
+                $fileName,
+                $purpose,
             ];
         }
 
