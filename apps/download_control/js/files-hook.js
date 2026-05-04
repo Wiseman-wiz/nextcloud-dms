@@ -189,28 +189,22 @@
 		return new Promise(function (resolve, reject) {
 			const safe = _esc(fileName);
 			const body = `
-				<div style="background:#fff8e1;border-left:4px solid #f9a825;padding:14px 16px;border-radius:6px;margin-bottom:16px;">
-					<h4 style="margin:0 0 8px;color:#5d4037;font-size:14px;">⚠️ File Access Disclaimer</h4>
-					<p style="margin:0 0 10px;font-size:13px;color:#5d4037;line-height:1.55;">
-						You are about to access <strong>${safe}</strong>.
-						This file may contain confidential information. By proceeding you agree to:
-					</p>
-					<ul style="font-size:13px;color:#5d4037;margin:0;padding-left:18px;line-height:1.8;">
-						<li>Not share this file with unauthorised persons.</li>
-						<li>Use the information only for authorised business purposes.</li>
-						<li>Report any security incidents immediately to IT.</li>
-					</ul>
-				</div>
-				<p style="font-weight:600;font-size:13px;margin:0;color:#333;">
-					Do you acknowledge and agree to these terms?
+				<p style="margin:0 0 10px;font-size:13px;color:#444;line-height:1.5;">
+					By proceeding to view <code style="background:#f5f5f5;padding:2px 6px;border-radius:4px;font-size:12px;">${safe}</code>, you acknowledge that this file is intended for official use only. Unauthorized use, reproduction, distribution, or alteration of its contents is strictly prohibited and may result in administrative or legal action.
+				</p>
+				<p style="margin:0 0 10px;font-size:13px;color:#444;line-height:1.5;">
+					The system administrator shall not be liable for any misuse of the viewed document or its contents.
+				</p>
+				<p style="margin:0 0 14px;font-size:13px;color:#444;line-height:1.5;">
+					By clicking "<span style="color:#0082c9;font-weight:600;">View</span>", you confirm your acceptance of these terms.
 				</p>`;
 
 			_createModal({
-				title: '🔒 Confidentiality Agreement',
+				title: '⚠️ System Disclaimer',
 				body: body,
 				buttons: [
 					{ label: 'Decline', primary: false, onClick: function () { reject(new Error('declined')); } },
-					{ label: 'I Agree – Open File', primary: true, onClick: function () { resolve(); } },
+					{ label: 'View', primary: true, onClick: function () { resolve(); } },
 				],
 			}).then(function (idx) { if (idx <= 0) reject(new Error('dismissed')); });
 		});
@@ -221,25 +215,43 @@
 			const safe = _esc(fileName);
 			const uid = 'dc-purpose-' + Date.now();
 			const body = `
+				<p style="margin:0 0 10px;font-size:13px;color:#444;line-height:1.5;">
+					By proceeding with the download, you acknowledge that <code style="background:#f5f5f5;padding:2px 6px;border-radius:4px;font-size:12px;">${safe}</code> is intended for official use only. Unauthorized use, reproduction, distribution, or alteration is strictly prohibited and may result in administrative or legal action.
+				</p>
+				<p style="margin:0 0 10px;font-size:13px;color:#444;line-height:1.5;">
+					The system administrator shall not be liable for any misuse of the downloaded documents.
+				</p>
 				<p style="margin:0 0 14px;font-size:13px;color:#444;line-height:1.5;">
-					Please state the <strong>purpose</strong> for downloading
-					<code style="background:#f5f5f5;padding:2px 6px;border-radius:4px;font-size:12px;">${safe}</code>.
+					By clicking "<span style="color:#e53935;font-weight:600;">Download</span>", you confirm your acceptance of these terms.
 				</p>
 				<label for="${uid}" style="display:block;margin-bottom:6px;font-weight:600;font-size:13px;color:#333;">
 					Purpose of Download <span style="color:#e53935;">*</span>
 				</label>
-				<textarea id="${uid}" rows="4"
-					placeholder="e.g. Audit review, Customer support, Compliance check…"
+				<select id="${uid}"
+					style="width:100%;box-sizing:border-box;border:1px solid #ccc;border-radius:6px;
+					       padding:9px 11px;font-size:13px;font-family:inherit;
+					       background-color:#f9f9f9;color:#000;transition:border-color 0.15s;margin-bottom:8px;"
+				>
+					<option value="">Select a purpose...</option>
+					<option value="LGU or Agency Recruitment">LGU or Agency Recruitment</option>
+					<option value="Internal Record Keeping">Internal Record Keeping</option>
+					<option value="Reference Only">Reference Only</option>
+					<option value="Site Copy">Site Copy</option>
+					<option value="Buyer's Request">Buyer's Request</option>
+					<option value="Others (please specify):">Others (please specify):</option>
+				</select>
+				<textarea id="${uid}-others" rows="3"
+					placeholder="Please specify..."
 					style="width:100%;box-sizing:border-box;border:1px solid #ccc;border-radius:6px;
 					       padding:9px 11px;font-size:13px;resize:vertical;font-family:inherit;
-					       background-color:#f9f9f9;color:#000;transition:border-color 0.15s;"
+					       background-color:#f9f9f9;color:#000;transition:border-color 0.15s;display:none;"
 				></textarea>
 				<p id="${uid}-err" style="color:#e53935;font-size:12px;margin:4px 0 0;display:none;">
 					This field is required.
 				</p>`;
 
 			_createModal({
-				title: '📋 Download Purpose Required',
+				title: '⚠️ System Disclaimer',
 				body: body,
 				buttons: [
 					{
@@ -247,7 +259,7 @@
 						onClick: function () { reject(new Error('cancelled')); },
 					},
 					{
-						label: 'Confirm Download', primary: true,
+						label: 'Download', primary: true,
 						onClick: function () {
 							/* no-op — we replace this button's handler below */
 						},
@@ -261,6 +273,32 @@
 				const dlg = _activeModal && _activeModal.dialog;
 				if (!dlg) { reject(new Error('no modal')); return; }
 
+				const selectEl = dlg.querySelector('#' + uid);
+				const othersTa = dlg.querySelector('#' + uid + '-others');
+
+				if (selectEl && othersTa) {
+					selectEl.addEventListener('change', function () {
+						const err = dlg.querySelector('#' + uid + '-err');
+						if (err) err.style.display = 'none';
+						selectEl.style.borderColor = '#ccc';
+						othersTa.style.borderColor = '#ccc';
+						
+						if (this.value === 'Others (please specify):') {
+							othersTa.style.display = 'block';
+							othersTa.focus();
+						} else {
+							othersTa.style.display = 'none';
+							othersTa.value = '';
+						}
+					});
+					
+					othersTa.addEventListener('input', function () {
+						const err = dlg.querySelector('#' + uid + '-err');
+						if (err) err.style.display = 'none';
+						othersTa.style.borderColor = '#ccc';
+					});
+				}
+
 				const buttons = dlg.querySelectorAll('button');
 				const confirmBtn = buttons[buttons.length - 1]; /* last = primary */
 				if (!confirmBtn) { reject(new Error('no button')); return; }
@@ -270,21 +308,35 @@
 				confirmBtn.parentNode.replaceChild(newBtn, confirmBtn);
 
 				newBtn.addEventListener('click', function () {
-					const ta = dlg.querySelector('#' + uid);
 					const err = dlg.querySelector('#' + uid + '-err');
-					const val = ta ? ta.value.trim() : '';
+					
+					let val = selectEl ? selectEl.value.trim() : '';
+					if (val === 'Others (please specify):') {
+						const othersVal = othersTa ? othersTa.value.trim() : '';
+						const cleanedVal = othersVal.replace(/[\s.]/g, '');
+						if (!othersVal) {
+							if (othersTa) othersTa.style.borderColor = '#e53935';
+							if (err) { err.textContent = 'Please specify your purpose.'; err.style.display = 'block'; }
+							return;
+						} else if (cleanedVal.length < 10) {
+							if (othersTa) othersTa.style.borderColor = '#e53935';
+							if (err) { err.textContent = 'Please provide a valid purpose (minimum 10 characters).'; err.style.display = 'block'; }
+							return;
+						}
+						val = 'Others: ' + othersVal;
+					}
+
 					if (!val) {
-						if (ta) ta.style.borderColor = '#e53935';
-						if (err) err.style.display = 'block';
+						if (selectEl) selectEl.style.borderColor = '#e53935';
+						if (err) { err.textContent = 'This field is required.'; err.style.display = 'block'; }
 						return;
 					}
 					_closeModal(_activeModal);
 					resolve(val);
 				});
 
-				/* Focus textarea */
-				const ta = dlg.querySelector('#' + uid);
-				if (ta) ta.focus();
+				/* Focus select */
+				if (selectEl) selectEl.focus();
 			}, 20);
 		});
 	}
