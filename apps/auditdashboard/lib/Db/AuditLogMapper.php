@@ -17,7 +17,7 @@ class AuditLogMapper extends QBMapper {
      * @param string[] $excludeCategories
      * @return AuditLog[]
      */
-    public function findAll(int $limit = 200, int $offset = 0, ?string $category = null, ?string $userId = null, ?string $action = null, ?string $search = null, ?string $dateFrom = null, ?string $dateTo = null, array $excludeCategories = []): array {
+    public function findAll(int $limit = 200, int $offset = 0, ?string $category = null, ?string $userId = null, ?string $action = null, ?string $search = null, ?string $dateFrom = null, ?string $dateTo = null, array $excludeCategories = [], array $excludeActions = []): array {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
             ->from($this->getTableName())
@@ -55,6 +55,9 @@ class AuditLogMapper extends QBMapper {
         foreach ($excludeCategories as $exCat) {
             $qb->andWhere($qb->expr()->neq('category', $qb->createNamedParameter($exCat)));
         }
+        foreach ($excludeActions as $exAct) {
+            $qb->andWhere($qb->expr()->neq('action', $qb->createNamedParameter($exAct)));
+        }
 
         return $this->findEntities($qb);
     }
@@ -62,7 +65,7 @@ class AuditLogMapper extends QBMapper {
     /**
      * @param string[] $excludeCategories
      */
-    public function countAll(?string $category = null, ?string $userId = null, ?string $action = null, ?string $search = null, ?string $dateFrom = null, ?string $dateTo = null, array $excludeCategories = []): int {
+    public function countAll(?string $category = null, ?string $userId = null, ?string $action = null, ?string $search = null, ?string $dateFrom = null, ?string $dateTo = null, array $excludeCategories = [], array $excludeActions = []): int {
         $qb = $this->db->getQueryBuilder();
         $qb->select($qb->createFunction('COUNT(*)'))
             ->from($this->getTableName());
@@ -97,6 +100,9 @@ class AuditLogMapper extends QBMapper {
         foreach ($excludeCategories as $exCat) {
             $qb->andWhere($qb->expr()->neq('category', $qb->createNamedParameter($exCat)));
         }
+        foreach ($excludeActions as $exAct) {
+            $qb->andWhere($qb->expr()->neq('action', $qb->createNamedParameter($exAct)));
+        }
 
         $result = $qb->executeQuery();
         $count = (int)$result->fetchOne();
@@ -125,11 +131,18 @@ class AuditLogMapper extends QBMapper {
     /**
      * @return array<string, int>
      */
-    public function getActionStats(): array {
+    public function getActionStats(array $excludeCategories = [], array $excludeActions = []): array {
         $qb = $this->db->getQueryBuilder();
         $qb->select('action', $qb->createFunction('COUNT(*) as count'))
             ->from($this->getTableName())
             ->groupBy('action');
+
+        foreach ($excludeCategories as $exCat) {
+            $qb->andWhere($qb->expr()->neq('category', $qb->createNamedParameter($exCat)));
+        }
+        foreach ($excludeActions as $exAct) {
+            $qb->andWhere($qb->expr()->neq('action', $qb->createNamedParameter($exAct)));
+        }
 
         $result = $qb->executeQuery();
         $stats = [];
@@ -180,7 +193,7 @@ class AuditLogMapper extends QBMapper {
         return $stats;
     }
 
-    public function getDistinctActions(array $excludeCategories = []): array {
+    public function getDistinctActions(array $excludeCategories = [], array $excludeActions = []): array {
         $qb = $this->db->getQueryBuilder();
         $qb->selectDistinct('action')
             ->from($this->getTableName())
@@ -188,6 +201,9 @@ class AuditLogMapper extends QBMapper {
 
         foreach ($excludeCategories as $exCat) {
             $qb->andWhere($qb->expr()->neq('category', $qb->createNamedParameter($exCat)));
+        }
+        foreach ($excludeActions as $exAct) {
+            $qb->andWhere($qb->expr()->neq('action', $qb->createNamedParameter($exAct)));
         }
 
         $result = $qb->executeQuery();

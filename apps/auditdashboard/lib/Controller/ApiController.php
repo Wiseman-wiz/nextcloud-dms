@@ -19,6 +19,7 @@ class ApiController extends Controller {
     private IDBConnection $db;
 
     private const EXCLUDED_CATEGORIES = ['auth', 'user'];
+    private const EXCLUDED_ACTIONS = ['file_touched', 'file_written'];
 
     public function __construct(IRequest $request, AuditLogMapper $mapper, IUserManager $userManager, IDBConnection $db) {
         parent::__construct(Application::APP_ID, $request);
@@ -56,7 +57,8 @@ class ApiController extends Controller {
             $search ?: null,
             $dateFrom ?: null,
             $dateTo ?: null,
-            self::EXCLUDED_CATEGORIES
+            self::EXCLUDED_CATEGORIES,
+            self::EXCLUDED_ACTIONS
         );
 
         $total = $this->mapper->countAll(
@@ -66,7 +68,8 @@ class ApiController extends Controller {
             $search ?: null,
             $dateFrom ?: null,
             $dateTo ?: null,
-            self::EXCLUDED_CATEGORIES
+            self::EXCLUDED_CATEGORIES,
+            self::EXCLUDED_ACTIONS
         );
 
         $data = array_map(function ($log) {
@@ -99,16 +102,20 @@ class ApiController extends Controller {
      * @NoAdminRequired
      */
     public function stats(): JSONResponse {
-        $allStats = $this->mapper->getStats();
-        // Remove excluded categories
-        foreach (self::EXCLUDED_CATEGORIES as $cat) {
-            unset($allStats[$cat]);
+        $actionStats = $this->mapper->getActionStats(self::EXCLUDED_CATEGORIES, self::EXCLUDED_ACTIONS);
+
+        $fileView = $actionStats['file_read'] ?? 0;
+        $fileDownload = $actionStats['file_downloaded'] ?? 0;
+
+        // Other = everything except file_read and file_downloaded
+        $other = 0;
+        foreach ($actionStats as $action => $count) {
+            if ($action !== 'file_read' && $action !== 'file_downloaded') {
+                $other += $count;
+            }
         }
 
-        $total = 0;
-        foreach ($allStats as $count) {
-            $total += $count;
-        }
+        $total = $fileView + $fileDownload + $other;
 
         $userIds = $this->mapper->getDistinctUsers();
         $users = array_map(function ($uid) {
@@ -116,10 +123,12 @@ class ApiController extends Controller {
         }, $userIds);
 
         return new JSONResponse([
-            'byCategory' => $allStats,
             'total' => $total,
+            'fileView' => $fileView,
+            'fileDownload' => $fileDownload,
+            'other' => $other,
             'users' => $users,
-            'actions' => $this->mapper->getDistinctActions(self::EXCLUDED_CATEGORIES),
+            'actions' => $this->mapper->getDistinctActions(self::EXCLUDED_CATEGORIES, self::EXCLUDED_ACTIONS),
         ]);
     }
 
@@ -143,7 +152,8 @@ class ApiController extends Controller {
             $search ?: null,
             $dateFrom ?: null,
             $dateTo ?: null,
-            self::EXCLUDED_CATEGORIES
+            self::EXCLUDED_CATEGORIES,
+            self::EXCLUDED_ACTIONS
         );
 
         $dateStr = (new \DateTime('now', new \DateTimeZone('Asia/Manila')))->format('Y-m-d');
