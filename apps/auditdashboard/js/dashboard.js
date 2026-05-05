@@ -3,11 +3,28 @@
 
     const baseUrl = OC.generateUrl('/apps/auditdashboard');
     let currentPage = 0;
-    const pageSize = 50;
+    let pageSize = 50;
     let totalLogs = 0;
     let currentLogs = [];
     let sortKey = 'timestamp';
     let sortDir = 'desc';
+
+    /* ---------- Helpers ---------- */
+
+    function userInitials(name) {
+        if (!name) return '?';
+        return name.split(' ').map(function (n) { return n[0]; }).join('').slice(0, 2).toUpperCase();
+    }
+
+    function userColorIndex(name) {
+        var h = 0;
+        for (var i = 0; i < name.length; i++) {
+            h = ((h * 31) + name.charCodeAt(i)) >>> 0;
+        }
+        return h % 6;
+    }
+
+    /* ---------- Sort ---------- */
 
     function sortData(data, key, dir) {
         return data.slice().sort(function (a, b) {
@@ -51,6 +68,8 @@
         });
     }
 
+    /* ---------- Init ---------- */
+
     function init() {
         loadStats();
         loadLogs();
@@ -90,7 +109,6 @@
         });
         document.getElementById('filter-reset').addEventListener('click', function () {
             document.getElementById('filter-search').value = '';
-            document.getElementById('filter-category').value = '';
             document.getElementById('filter-action').value = '';
             document.getElementById('filter-user').value = '';
             document.getElementById('filter-date-from').value = '';
@@ -107,18 +125,25 @@
         document.getElementById('filter-search').addEventListener('keydown', function (e) {
             if (e.key === 'Enter') { currentPage = 0; loadLogs(); }
         });
+        document.getElementById('page-size').addEventListener('change', function () {
+            pageSize = parseInt(this.value, 10);
+            currentPage = 0;
+            loadLogs();
+        });
     }
 
     function getFilters() {
         return {
             search: document.getElementById('filter-search').value,
-            category: document.getElementById('filter-category').value,
+            category: '',
             action: document.getElementById('filter-action').value,
             userId: document.getElementById('filter-user').value,
             dateFrom: document.getElementById('filter-date-from').value,
             dateTo: document.getElementById('filter-date-to').value,
         };
     }
+
+    /* ---------- Stats ---------- */
 
     function loadStats() {
         fetch(baseUrl + '/api/stats', {
@@ -127,9 +152,9 @@
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 document.querySelector('#stat-total .stat-number').textContent = data.total || 0;
-                document.querySelector('#stat-file .stat-number').textContent = data.byCategory.file || 0;
-                document.querySelector('#stat-share .stat-number').textContent = data.byCategory.share || 0;
-                document.querySelector('#stat-filerequest .stat-number').textContent = data.byCategory.file_request || data.byCategory.filerequest || 0;
+                document.querySelector('#stat-fileview .stat-number').textContent = data.fileView || 0;
+                document.querySelector('#stat-filedownload .stat-number').textContent = data.fileDownload || 0;
+                document.querySelector('#stat-other .stat-number').textContent = data.other || 0;
 
                 var userSelect = document.getElementById('filter-user');
                 var currentUserVal = userSelect.value;
@@ -162,6 +187,8 @@
             });
     }
 
+    /* ---------- Logs ---------- */
+
     function loadLogs() {
         var filters = getFilters();
         var params = new URLSearchParams({
@@ -176,7 +203,7 @@
         });
 
         var tbody = document.getElementById('audit-table-body');
-        tbody.innerHTML = '<tr><td colspan="6" class="loading">Loading...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="loading">Loading...</td></tr>';
 
         fetch(baseUrl + '/api/logs?' + params.toString(), {
             headers: { 'requesttoken': OC.requestToken }
@@ -187,17 +214,20 @@
                 currentLogs = data.logs || [];
                 renderTable(currentLogs);
                 updatePagination();
+                updateFilterInfo();
             })
             .catch(function (err) {
                 console.error('Failed to load logs:', err);
-                tbody.innerHTML = '<tr><td colspan="6" class="loading">Failed to load audit logs.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" class="loading">Failed to load audit logs.</td></tr>';
             });
     }
+
+    /* ---------- Render ---------- */
 
     function renderTable(logs) {
         var tbody = document.getElementById('audit-table-body');
         if (!logs || logs.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><h3>No audit logs found</h3><p>Events will appear here as users interact with the server.</p></td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><h3>No audit logs found</h3><p>Events will appear here as users interact with the server.</p></td></tr>';
             return;
         }
 
@@ -205,10 +235,9 @@
         var html = '';
         sorted.forEach(function (log) {
             html += '<tr>';
-            html += '<td style="white-space:nowrap">' + escapeHtml(log.timestamp) + '</td>';
-            html += '<td><strong>' + escapeHtml(log.displayName || log.userId) + '</strong></td>';
+            html += '<td class="ts-cell">' + escapeHtml(log.timestamp) + '</td>';
+            html += '<td>' + userCell(log.displayName || log.userId) + '</td>';
             html += '<td>' + actionBadge(log.action) + '</td>';
-            html += '<td>' + categoryBadge(log.category) + '</td>';
             html += '<td class="file-cell" title="' + escapeHtml(log.target) + '">' + escapeHtml(log.fileName || '') + '</td>';
             html += '<td class="purpose-cell">' + purposeContent(log.action, log.purpose) + '</td>';
             html += '</tr>';
@@ -217,8 +246,18 @@
         tbody.innerHTML = html;
     }
 
+    function updateFilterInfo() {
+        var showingEl = document.getElementById('showing-count');
+        var totalEl = document.getElementById('total-count');
+        if (showingEl) showingEl.textContent = currentLogs.length;
+        if (totalEl) totalEl.textContent = totalLogs;
+    }
+
     function updatePagination() {
         var totalPages = Math.ceil(totalLogs / pageSize);
+        var rangeStart = totalLogs === 0 ? 0 : currentPage * pageSize + 1;
+        var rangeEnd = Math.min((currentPage + 1) * pageSize, totalLogs);
+        document.getElementById('page-range').textContent = 'Shows ' + rangeStart + ' to ' + rangeEnd + ' of ' + totalLogs + ' entries';
         document.getElementById('page-info').textContent = 'Page ' + (currentPage + 1) + ' of ' + Math.max(totalPages, 1);
         document.getElementById('page-prev').disabled = currentPage === 0;
         document.getElementById('page-next').disabled = (currentPage + 1) >= totalPages;
@@ -237,23 +276,45 @@
         window.location.href = baseUrl + '/api/export?' + params.toString() + '&requesttoken=' + encodeURIComponent(OC.requestToken);
     }
 
+    /* ---------- Cell renderers ---------- */
+
+    function userCell(name) {
+        var idx = userColorIndex(name);
+        var inits = userInitials(name);
+        return '<div class="user-cell">'
+            + '<div class="user-avatar user-avatar-' + idx + '">' + escapeHtml(inits) + '</div>'
+            + '<span class="user-name">' + escapeHtml(name) + '</span>'
+            + '</div>';
+    }
+
     function categoryBadge(cat) {
-        var icons = {
-            file: '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
-            share: '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>',
-            filerequest: '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>',
-            file_request: '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>'
+        var labels = {
+            file: 'File',
+            share: 'Share',
+            filerequest: 'Request',
+            file_request: 'Request'
         };
-        var icon = icons[cat] || '';
-        return '<span class="badge badge-' + escapeHtml(cat) + '">' + icon + ' ' + escapeHtml(cat) + '</span>';
+        var label = labels[cat] || cat;
+        return '<span class="badge badge-' + escapeHtml(cat) + '">'
+            + '<span class="badge-dot"></span> '
+            + escapeHtml(label)
+            + '</span>';
     }
 
     function actionBadge(action) {
-        var cls = '';
-        if (action.indexOf('deleted') !== -1 || action.indexOf('failed') !== -1) cls = 'danger';
-        else if (action.indexOf('created') !== -1 || action.indexOf('success') !== -1) cls = 'success';
-        else if (action.indexOf('renamed') !== -1 || action.indexOf('changed') !== -1) cls = 'warning';
-        return '<span class="action-badge ' + cls + '">' + escapeHtml(formatAction(action)) + '</span>';
+        var icons = {
+            file_read: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
+            file_downloaded: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17V3"/><path d="m6 11 6 6 6-6"/><path d="M19 21H5"/></svg>',
+            share_created: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>',
+            file_deleted: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>',
+            file_created: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>',
+        };
+        var icon = icons[action] || '';
+        var iconHtml = icon ? '<span class="action-icon">' + icon + '</span>' : '';
+        return '<span class="action-badge">'
+            + iconHtml
+            + escapeHtml(formatAction(action))
+            + '</span>';
     }
 
     function formatAction(action) {
@@ -261,7 +322,9 @@
     }
 
     function purposeContent(action, purpose) {
-        if (action !== 'file_downloaded' || !purpose) return '';
+        if (action !== 'file_downloaded' || !purpose) {
+            return '<span class="purpose-empty">—</span>';
+        }
         return '<span class="purpose-badge">' + escapeHtml(purpose) + '</span>';
     }
 
@@ -271,6 +334,8 @@
         div.appendChild(document.createTextNode(str));
         return div.innerHTML;
     }
+
+    /* ---------- Auto-refresh ---------- */
 
     setInterval(function () {
         loadStats();
