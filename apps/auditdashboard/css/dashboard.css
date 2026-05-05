@@ -168,29 +168,50 @@
     box-shadow: var(--ad-shadow-lg);
     z-index: 100;
     min-width: 180px;
-    overflow: hidden;
+    padding: 6px;
     animation: ad-dropdown 0.18s ease-out;
 }
 @keyframes ad-dropdown {
     from { opacity: 0; transform: translateY(-6px) scale(0.97); }
     to   { opacity: 1; transform: translateY(0) scale(1); }
 }
-.export-menu.open { display: block; }
+.export-menu.open { 
+    display: flex; 
+    flex-direction: column; 
+    align-items: stretch; 
+}
 .export-option {
     display: flex;
     align-items: center;
-    gap: 8px;
-    width: 100%;
-    padding: 10px 16px;
-    border: none;
-    background: none;
+    gap: 10px;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 8px 12px !important;
+    margin: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    border-radius: var(--ad-radius-sm) !important;
     font-size: 13px;
-    color: var(--ad-text);
+    font-weight: 500;
+    color: var(--ad-text) !important;
     cursor: pointer;
     text-align: left;
-    transition: background var(--ad-transition);
+    transition: all var(--ad-transition);
 }
-.export-option:hover { background: var(--ad-primary-light); color: var(--ad-primary); }
+.export-option:hover { 
+    background: var(--ad-primary-light) !important; 
+    color: var(--ad-primary) !important; 
+}
+.export-option .btn-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ad-text-secondary);
+    transition: color var(--ad-transition);
+}
+.export-option:hover .btn-icon {
+    color: var(--ad-primary);
+}
 
 /* ---------- Stat Cards ---------- */
 .audit-stats {
