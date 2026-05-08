@@ -94,8 +94,12 @@
                     <input type="date" id="filter-date-from" class="audit-filter-date" title="From date">
                     <span class="audit-filter-sep">→</span>
                     <input type="date" id="filter-date-to" class="audit-filter-date" title="To date">
-                    <button id="filter-apply" class="audit-btn audit-btn-sm audit-btn-primary">Apply</button>
-                    <button id="filter-reset" class="filter-reset-btn">Reset</button>
+                    <button id="filter-apply" class="audit-btn audit-btn-icon audit-btn-primary" title="Apply Filters">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    </button>
+                    <button id="filter-reset" class="audit-btn audit-btn-icon" title="Reset Filters">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><polyline points="3 3 3 8 8 8"/></svg>
+                    </button>
                 </div>
             </div>
 

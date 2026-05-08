@@ -45,8 +45,7 @@
 [data-themes*=dark] {
     --ad-header-bg: rgba(244, 246, 249, 1);
 
-    & .audit-header-inner {
-        /* --ad-header-bg: rgba(244, 246, 249, 0.80); */
+    & .audit-header {
         background: var(--ad-surface);
     }
 }
@@ -150,6 +149,13 @@
     padding: 5px 14px;
     font-size: 12px;
     border-radius: var(--ad-radius-pill);
+}
+.audit-btn-icon {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    justify-content: center;
+    border-radius: var(--ad-radius-sm);
 }
 .audit-btn .btn-icon {
     width: 14px;
@@ -396,6 +402,7 @@
     color: #1a1d26 !important;
     color-scheme: light !important;
     flex: 1;
+    width: 100%;
     min-width: 0;
     transition: box-shadow var(--ad-transition), border-color var(--ad-transition);
 }
