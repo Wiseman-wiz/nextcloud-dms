@@ -109,25 +109,27 @@
             </div> -->
 
             <!-- Table Header (fixed) -->
-            <table class="audit-table audit-table-head" id="audit-table">
-                <thead>
-                    <tr>
-                        <th class="audit-sortable audit-sorted" data-sort-key="timestamp" data-sort-dir="desc">Timestamp</th>
-                        <th class="audit-sortable" data-sort-key="displayName">User</th>
-                        <th class="audit-sortable" data-sort-key="action">Action</th>
-                        <th class="audit-sortable" data-sort-key="fileName">File</th>
-                        <th class="audit-sortable" data-sort-key="purpose">Purpose</th>
-                    </tr>
-                </thead>
-            </table>
-
-            <!-- Table Body (scrollable) -->
-            <div class="audit-table-wrapper">
-                <table class="audit-table audit-table-body">
-                    <tbody id="audit-table-body">
-                        <tr><td colspan="5" class="loading">Loading audit logs...</td></tr>
-                    </tbody>
+            <div class="audit-table-scroll-container">
+                <table class="audit-table audit-table-head" id="audit-table">
+                    <thead>
+                        <tr>
+                            <th class="audit-sortable audit-sorted" data-sort-key="timestamp" data-sort-dir="desc">Timestamp</th>
+                            <th class="audit-sortable" data-sort-key="displayName">User</th>
+                            <th class="audit-sortable" data-sort-key="action">Action</th>
+                            <th class="audit-sortable" data-sort-key="fileName">File</th>
+                            <th class="audit-sortable" data-sort-key="purpose">Purpose</th>
+                        </tr>
+                    </thead>
                 </table>
+
+                <!-- Table Body (scrollable) -->
+                <div class="audit-table-wrapper">
+                    <table class="audit-table audit-table-body">
+                        <tbody id="audit-table-body">
+                            <tr><td colspan="5" class="loading">Loading audit logs...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             <!-- Pagination -->
