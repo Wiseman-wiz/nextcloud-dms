@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
 /* ===================================================
    Audit Dashboard — Premium UI
    =================================================== */
@@ -45,8 +47,14 @@
 [data-themes*=dark] {
     --ad-header-bg: rgba(244, 246, 249, 1);
 
-    & .audit-header {
+    /* & .audit-header {
         background: var(--ad-surface);
+    } */
+    & .audit-header {
+        background: #171717 !important;
+    }
+    & .audit-header h2{
+        color: var(--ad-surface) !important;
     }
 }
 
@@ -55,7 +63,7 @@
     padding: 0;
     max-width: 1240px;
     margin: 0 auto;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, Oxygen, Ubuntu, sans-serif;
+    font-family: 'Poppins', sans-serif;
     color: var(--ad-text);
     -webkit-font-smoothing: antialiased;
 }
@@ -80,7 +88,8 @@
     margin: 0 auto;
 }
 .audit-header h2 {
-    font-size: 18px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 1.5em;
     font-weight: 700;
     margin: 0;
     display: flex;
@@ -91,13 +100,13 @@
 .audit-header h2::before {
     content: '';
     display: inline-flex;
-    width: 32px;
-    height: 32px;
+    width: 2em;
+    height: 2em;
     border-radius: var(--ad-radius-sm);
-    background: var(--ad-primary);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='22 12 18 12 15 21 9 3 6 12 2 12'/%3E%3C/svg%3E");
+    background-image: url("../img/bdc-logo.jpg");
     background-repeat: no-repeat;
     background-position: center;
+    background-size: cover;
 }
 .audit-header-subtitle {
     display: block;
@@ -390,6 +399,45 @@
     box-shadow: none !important;
     background-color: var(--ad-surface);
     border-color: var(--ad-shadow-sm) !important;
+}
+
+.multi-filter-dropdown {
+    position: relative;
+}
+.multi-filter-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    background: var(--ad-surface);
+    border: 1px solid var(--ad-border);
+    border-radius: var(--ad-radius);
+    box-shadow: var(--ad-shadow-lg);
+    z-index: 100;
+    min-width: 200px;
+    padding: 12px;
+    animation: ad-dropdown 0.18s ease-out;
+}
+.multi-filter-menu.open {
+    display: block;
+}
+.multi-filter-group {
+    margin-bottom: 12px;
+}
+.multi-filter-group:last-child {
+    margin-bottom: 0;
+}
+.multi-filter-group label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--ad-text-secondary);
+    margin-bottom: 6px;
+}
+.multi-filter-group .audit-filter {
+    width: 100%;
 }
 
 /* ---------- Date range ---------- */
@@ -709,16 +757,24 @@
 }
 .page-size-select {
     padding: 4px 8px;
-    border: 1px solid var(--ad-border);
+    border: 1px solid var(--ad-border) !important;
     border-radius: var(--ad-radius-sm);
     font-size: 13px;
-    background: var(--ad-surface);
-    color: var(--ad-text);
+    background: #ffffff !important;
+    color: #1a1d26 !important;
+    color-scheme: light !important;
     cursor: pointer;
 }
 .page-size-select:focus {
     outline: none;
-    border-color: var(--ad-primary);
+    /* border-color: var(--ad-primary); */
+    border-color: black !important;
+    box-shadow: none !important;
+}
+.page-size-select:hover{ 
+    border-color: black !important;
+    border: 1px solid black !important;
+    box-shadow: none !important;
 }
 .pagination-range {
     font-size: 13px;

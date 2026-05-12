@@ -83,12 +83,25 @@
                     <div class="audit-search-wrap">
                         <input type="text" id="filter-search" class="audit-search" placeholder="Search">
                     </div>
-                    <select id="filter-action" class="audit-filter">
-                        <option value="">All Actions</option>
-                    </select>
-                    <select id="filter-user" class="audit-filter">
-                        <option value="">All Users</option>
-                    </select>
+                    <div class="multi-filter-dropdown" id="multi-filter-dropdown">
+                        <button class="audit-btn audit-btn-icon" id="multi-filter-toggle" title="Filters">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                        </button>
+                        <div class="multi-filter-menu" id="multi-filter-menu">
+                            <div class="multi-filter-group">
+                                <label for="filter-action">Action</label>
+                                <select id="filter-action" class="audit-filter">
+                                    <option value="">All Actions</option>
+                                </select>
+                            </div>
+                            <div class="multi-filter-group">
+                                <label for="filter-user">User</label>
+                                <select id="filter-user" class="audit-filter">
+                                    <option value="">All Users</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="audit-toolbar-right">
                     <input type="date" id="filter-date-from" class="audit-filter-date" title="From date">
