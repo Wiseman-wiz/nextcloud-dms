@@ -48,6 +48,36 @@ class ApiController extends Controller {
 
         $limit = min(max($limit, 1), 500);
 
+        $matchedUserIds = [];
+        $matchedActionIds = [];
+
+        if ($search !== '') {
+            $trimmedSearch = trim($search);
+            if ($trimmedSearch === '' || 
+                str_contains($search, '/') || 
+                str_contains($search, '\\') ||
+                preg_match('/^[^a-zA-Z0-9]+$/', $trimmedSearch)) {
+                return new JSONResponse([
+                    'logs' => [],
+                    'total' => 0,
+                ]);
+            }
+
+            $users = $this->userManager->search($trimmedSearch);
+            foreach ($users as $u) {
+                $matchedUserIds[] = $u->getUID();
+            }
+
+            $allActions = $this->mapper->getDistinctActions(self::EXCLUDED_CATEGORIES, self::EXCLUDED_ACTIONS);
+            foreach ($allActions as $a) {
+                $formatted = str_replace('_', ' ', $a);
+                $formatted = ucwords($formatted);
+                if (stripos($formatted, $trimmedSearch) !== false || stripos($a, $trimmedSearch) !== false) {
+                    $matchedActionIds[] = $a;
+                }
+            }
+        }
+
         $logs = $this->mapper->findAll(
             $limit,
             $offset,
@@ -58,7 +88,9 @@ class ApiController extends Controller {
             $dateFrom ?: null,
             $dateTo ?: null,
             self::EXCLUDED_CATEGORIES,
-            self::EXCLUDED_ACTIONS
+            self::EXCLUDED_ACTIONS,
+            $matchedUserIds,
+            $matchedActionIds
         );
 
         $total = $this->mapper->countAll(
@@ -69,7 +101,9 @@ class ApiController extends Controller {
             $dateFrom ?: null,
             $dateTo ?: null,
             self::EXCLUDED_CATEGORIES,
-            self::EXCLUDED_ACTIONS
+            self::EXCLUDED_ACTIONS,
+            $matchedUserIds,
+            $matchedActionIds
         );
 
         $data = array_map(function ($log) {
@@ -143,6 +177,38 @@ class ApiController extends Controller {
         $dateTo = $this->request->getParam('dateTo', '');
         $format = $this->request->getParam('format', 'csv');
 
+        $matchedUserIds = [];
+        $matchedActionIds = [];
+
+        if ($search !== '') {
+            $trimmedSearch = trim($search);
+            if ($trimmedSearch === '' || 
+                str_contains($search, '/') || 
+                str_contains($search, '\\') ||
+                preg_match('/^[^a-zA-Z0-9]+$/', $trimmedSearch)) {
+                
+                $dateStr = (new \DateTime('now', new \DateTimeZone('Asia/Manila')))->format('Y-m-d');
+                if ($format === 'xlsx') {
+                    return $this->exportXlsx([], $dateStr);
+                }
+                return $this->exportCsv([], $dateStr);
+            }
+
+            $users = $this->userManager->search($trimmedSearch);
+            foreach ($users as $u) {
+                $matchedUserIds[] = $u->getUID();
+            }
+
+            $allActions = $this->mapper->getDistinctActions(self::EXCLUDED_CATEGORIES, self::EXCLUDED_ACTIONS);
+            foreach ($allActions as $a) {
+                $formatted = str_replace('_', ' ', $a);
+                $formatted = ucwords($formatted);
+                if (stripos($formatted, $trimmedSearch) !== false || stripos($a, $trimmedSearch) !== false) {
+                    $matchedActionIds[] = $a;
+                }
+            }
+        }
+
         $logs = $this->mapper->findAll(
             10000,
             0,
@@ -153,7 +219,9 @@ class ApiController extends Controller {
             $dateFrom ?: null,
             $dateTo ?: null,
             self::EXCLUDED_CATEGORIES,
-            self::EXCLUDED_ACTIONS
+            self::EXCLUDED_ACTIONS,
+            $matchedUserIds,
+            $matchedActionIds
         );
 
         $dateStr = (new \DateTime('now', new \DateTimeZone('Asia/Manila')))->format('Y-m-d');

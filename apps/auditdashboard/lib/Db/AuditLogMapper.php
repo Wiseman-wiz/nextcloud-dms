@@ -17,7 +17,7 @@ class AuditLogMapper extends QBMapper {
      * @param string[] $excludeCategories
      * @return AuditLog[]
      */
-    public function findAll(int $limit = 200, int $offset = 0, ?string $category = null, ?string $userId = null, ?string $action = null, ?string $search = null, ?string $dateFrom = null, ?string $dateTo = null, array $excludeCategories = [], array $excludeActions = []): array {
+    public function findAll(int $limit = 200, int $offset = 0, ?string $category = null, ?string $userId = null, ?string $action = null, ?string $search = null, ?string $dateFrom = null, ?string $dateTo = null, array $excludeCategories = [], array $excludeActions = [], array $matchedUserIds = [], array $matchedActionIds = []): array {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
             ->from($this->getTableName())
@@ -37,14 +37,21 @@ class AuditLogMapper extends QBMapper {
         if ($search !== null && $search !== '') {
             $searchParam = '%' . $this->db->escapeLikeParameter($search) . '%';
             $purposeExists = 'EXISTS (SELECT 1 FROM `*PREFIX*download_logs` `dl` WHERE `dl`.`user_id` = `*PREFIX*audit_log`.`user_id` AND `*PREFIX*audit_log`.`target` LIKE CONCAT(\'%/\', `dl`.`file_name`) AND `dl`.`purpose` LIKE ' . $qb->createNamedParameter($searchParam) . ')';
-            $qb->andWhere($qb->expr()->orX(
+            $orExpr = $qb->expr()->orX(
                 $qb->expr()->iLike('target', $qb->createNamedParameter($searchParam)),
                 $qb->expr()->iLike('user_id', $qb->createNamedParameter($searchParam)),
                 $qb->expr()->iLike('action', $qb->createNamedParameter($searchParam)),
                 $qb->expr()->iLike('category', $qb->createNamedParameter($searchParam)),
                 $qb->expr()->iLike('timestamp', $qb->createNamedParameter($searchParam)),
                 $qb->createFunction($purposeExists)
-            ));
+            );
+            if (!empty($matchedUserIds)) {
+                $orExpr->add($qb->expr()->in('user_id', $qb->createNamedParameter($matchedUserIds, IQueryBuilder::PARAM_STR_ARRAY)));
+            }
+            if (!empty($matchedActionIds)) {
+                $orExpr->add($qb->expr()->in('action', $qb->createNamedParameter($matchedActionIds, IQueryBuilder::PARAM_STR_ARRAY)));
+            }
+            $qb->andWhere($orExpr);
         }
         if ($dateFrom !== null && $dateFrom !== '') {
             $qb->andWhere($qb->expr()->gte('timestamp', $qb->createNamedParameter($dateFrom)));
@@ -65,7 +72,7 @@ class AuditLogMapper extends QBMapper {
     /**
      * @param string[] $excludeCategories
      */
-    public function countAll(?string $category = null, ?string $userId = null, ?string $action = null, ?string $search = null, ?string $dateFrom = null, ?string $dateTo = null, array $excludeCategories = [], array $excludeActions = []): int {
+    public function countAll(?string $category = null, ?string $userId = null, ?string $action = null, ?string $search = null, ?string $dateFrom = null, ?string $dateTo = null, array $excludeCategories = [], array $excludeActions = [], array $matchedUserIds = [], array $matchedActionIds = []): int {
         $qb = $this->db->getQueryBuilder();
         $qb->select($qb->createFunction('COUNT(*)'))
             ->from($this->getTableName());
@@ -82,14 +89,21 @@ class AuditLogMapper extends QBMapper {
         if ($search !== null && $search !== '') {
             $searchParam = '%' . $this->db->escapeLikeParameter($search) . '%';
             $purposeExists = 'EXISTS (SELECT 1 FROM `*PREFIX*download_logs` `dl` WHERE `dl`.`user_id` = `*PREFIX*audit_log`.`user_id` AND `*PREFIX*audit_log`.`target` LIKE CONCAT(\'%/\', `dl`.`file_name`) AND `dl`.`purpose` LIKE ' . $qb->createNamedParameter($searchParam) . ')';
-            $qb->andWhere($qb->expr()->orX(
+            $orExpr = $qb->expr()->orX(
                 $qb->expr()->iLike('target', $qb->createNamedParameter($searchParam)),
                 $qb->expr()->iLike('user_id', $qb->createNamedParameter($searchParam)),
                 $qb->expr()->iLike('action', $qb->createNamedParameter($searchParam)),
                 $qb->expr()->iLike('category', $qb->createNamedParameter($searchParam)),
                 $qb->expr()->iLike('timestamp', $qb->createNamedParameter($searchParam)),
                 $qb->createFunction($purposeExists)
-            ));
+            );
+            if (!empty($matchedUserIds)) {
+                $orExpr->add($qb->expr()->in('user_id', $qb->createNamedParameter($matchedUserIds, IQueryBuilder::PARAM_STR_ARRAY)));
+            }
+            if (!empty($matchedActionIds)) {
+                $orExpr->add($qb->expr()->in('action', $qb->createNamedParameter($matchedActionIds, IQueryBuilder::PARAM_STR_ARRAY)));
+            }
+            $qb->andWhere($orExpr);
         }
         if ($dateFrom !== null && $dateFrom !== '') {
             $qb->andWhere($qb->expr()->gte('timestamp', $qb->createNamedParameter($dateFrom)));

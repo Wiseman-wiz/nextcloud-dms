@@ -96,6 +96,22 @@
         menu.addEventListener('click', function (e) {
             e.stopPropagation();
         });
+
+        // Multi-filter dropdown
+        var filterToggle = document.getElementById('multi-filter-toggle');
+        var filterMenu = document.getElementById('multi-filter-menu');
+        if (filterToggle && filterMenu) {
+            filterToggle.addEventListener('click', function (e) {
+                e.stopPropagation();
+                filterMenu.classList.toggle('open');
+            });
+            document.addEventListener('click', function () {
+                filterMenu.classList.remove('open');
+            });
+            filterMenu.addEventListener('click', function (e) {
+                e.stopPropagation();
+            });
+        }
         document.querySelectorAll('.export-option').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 exportData(btn.dataset.format);
@@ -129,6 +145,20 @@
             pageSize = parseInt(this.value, 10);
             currentPage = 0;
             loadLogs();
+        });
+
+        // Make entire date input clickable
+        var dateInputs = document.querySelectorAll('.audit-filter-date');
+        dateInputs.forEach(function(input) {
+            input.addEventListener('click', function(e) {
+                if (typeof this.showPicker === 'function') {
+                    try {
+                        this.showPicker();
+                    } catch (err) {
+                        // ignore if already showing or unsupported
+                    }
+                }
+            });
         });
     }
 
